@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Checkers</title>
+    <link rel=stylesheet type=text/css href="/static/style.css">
+    <style>
+        .piece-block {
+            display: inline-block;
+            height: 60px;
+            width: 60px;
+            border: 1px solid gray;
+            color: rgba(0,0,0,0);
+            background-size: contain;
+        }
+        .piece-selected {
+            background-color: yellow !important;
+        }
+    </style>
+    <script src="/static/scripts/jquery-1.11.3.min.js"></script>
+</head>
+<body>
+
+You are Player {{ player }} <img src="/static/img/button-{{player}}.png" style="width:20px;">
+<br><br>
+It is Player <span id="current-player"></span> <img id="current-player-img" style="width:20px;">'s turn
+<br><br>
+
+<div id="board"></div>
+
+<br>
+From: <input type="text" name="movefrombox" id="movefrombox" size="5"/> To: <input type="text" name="movetobox" id="movetobox" size="5"/>
+<button id="submit-btn">Submit Move</button><button id="reset-btn">Reset Move</button>
+<br>
+Reload every <input type="text" id="refreshratebox" size="1" maxlength="3" value="30"/> Seconds <button id="refresh-btn">Set</button>
+
+
+<script>
+var gameId = "{{gameid}}";
+var player = {{player}};
+var current_player;
+var updatedAt = "";
+var from_pos = [];
+var to_pos = [];
+
+var refreshRate = 30000;
+
+$(document).ready(function(){
+    //Draw the board
+    for (var y=0; y<8; y++) {
+        for (var x=0; x<8; x++) {
+            $("#board").append("<div class='piece-block' id='x" + x + "y" + y + "'>0</div>");
+        }
+        $("#board").append("<br/>");
+    }
+    //Fill the board's background colors
+    for (var y=0; y<8; y++) {
+        for (var x=0; x<8; x++) {
+            var bgcss = "#191919";
+            if (x%2 == y%2) {
+                bgcss = "tan";
+            }
+            $("#x"+x+"y"+y).css("background-color", bgcss);
+        }
+    }
+
+    //Bind move control buttons
+    submitMove();
+    resetMove();
+    setRefreshRate();
+
+    //Bind div piece clicks
+    setClickBindings();
+
+    //Start game
+    gameLoop();
+
+});
+
+
+//Draw the game pieces
+//var gameData = {"createdAt":"2015-09-09T23:54:24.415Z","currentPlayer":1,"lastMove":null,"mustJump":false,"mustJumpFrom":null,"objectId":"M5T6ygN6ih","piecesArray":[[{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null],[null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1}],[{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null],[null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null],[null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1}],[{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null],[null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1}]],"updatedAt":"2015-09-09T23:54:24.415Z"};
+function drawPieces(gameData) {
+    var pieces = gameData['piecesArray'];
+    for (var y=0; y<8; y++) {
+        for (var x=0; x<8; x++) {
+            var p = pieces[y][x];
+            if (p!=null) {
+                var pieceimage = "";
+                var pieceText = "0";
+
+                pieceimage = "button-"+p['owner']+".png";
+                pieceText = p['owner'].toString();
+                $("#x"+x+"y"+y).css("background-image", "url('/static/img/"+pieceimage+"')");
+                $("#x"+x+"y"+y).text(pieceText);
+            }
+            else {
+                $("#x"+x+"y"+y).css("background-image","");
+                $("#x"+x+"y"+y).text("0");
+            }
+        }
+    }
+}
+
+
+
+//Game Logic
+
+
+function gameLoop() {
+    $.ajax("/checkers/poll/" + gameId).done(function(data) {
+        // if (updatedAt==data['updatedAt']) {
+
+        // }
+
+        drawPieces(data);
+        current_player = data['currentPlayer'];
+        $("#current-player").text(current_player);
+        $("#current-player-img").attr("src", "/static/img/button-"+current_player+".png")
+        if (player==data['currentPlayer']) { //Client player's turn
+            //wait for input
+            // getMove();
+        }
+        else if (0==data['currentPlayer']) { //Game over
+            gameOver();
+        }
+        else { //Wait for opponent to make move
+            setTimeout(gameLoop, refreshRate);
+        }
+    });
+}
+
+
+function setClickBindings() {
+    // Flow:
+    // Check if it's this player's turn
+    // Check if from_pos and to_pos are set to determine if first click or second click or extra click
+    // If first click:
+        // 1. Check if clicked location is owner's piece
+        // 2. Get x,y
+        // 3. Set from_pos[] to x,y
+        // 4. Set piece to "piece-selected" class for highlight effect
+        // 5. Call updatefrombox() to update display
+    // If second click:
+        // 1. Get x,y
+        // 2. Check if clicked location is empty and valid move
+        // 3. Set to_pos[] to x,y
+        // 4. Call updatetobox() to update display
+        // 5. Turn off highlight effect for from piece
+        // 6. Remove piece-image bg for from_piece, add for to_piece
+
+    $(".piece-block").click(function() {
+        var pid = $(this).attr("id");
+        var owner = parseInt($(this).text());
+
+        if (player!=current_player) {
+            return;
+        }
+
+        // 1st click
+        if (from_pos.length==0) {
+            
+
+            // 1.
+            if (owner!=player) {
+                return;
+            }
+            // 2.
+            var x_pos = parseInt(pid.charAt(1));
+            var y_pos = parseInt(pid.charAt(3));
+
+            // 3.
+            from_pos[0] = x_pos;
+            from_pos[1] = y_pos;
+
+            // 4.
+            $(this).addClass("piece-selected");
+
+            // 5.
+            updateFromBox();
+
+        }
+        else {
+            // Unnecessary click
+            if (to_pos.length==2) { 
+                return;
+            }
+            // 2nd Click
+
+            // 1. 
+            var x_pos = parseInt(pid.charAt(1));
+            var y_pos = parseInt(pid.charAt(3));
+
+            // 2.
+            var tempXY = [x_pos, y_pos];
+            var isValid = validateMove(from_pos, tempXY);
+
+            if (!isValid) {
+                return;
+            }
+
+            // 3.
+            to_pos[0] = x_pos;
+            to_pos[1] = y_pos;
+
+            // 4.
+            updateToBox();
+
+            // 5. and 6.
+            movePiece(from_pos, to_pos);
+
+            // // 5.
+            // var from_piece = $("#x" + from_pos[0] + "y" + from_pos[1]);
+            // from_piece.toggleClass("piece-selected");
+
+            // // 6.
+            // var p_img = from_piece.css("background-image");
+            // from_piece.css("background-image", "");
+            // $(this).css("background-image", p_img);
+
+        }
+        // var pid = $(this).attr("id");
+        // var owner = parseInt($(this).text());
+        // if (owner==player) {
+        //     //Proceed
+        //     var x_pos = pid.charAt(1);
+        //     var y_pos = pid.charAt(3);
+        //     $(this).toggleClass("piece-selected");
+        //     //Display in input box
+        //     // $("#movefrombox").val(x_pos + ", " + y_pos);
+        //     from_pos[0] = x_pos;
+        //     from_pos[1] = y_pos;
+        //     updateFromBox();
+        //     return [x_pos, y_pos];
+        // }
+        // else {
+        //     //Wrong piece clicked, get input again
+        //     return getFrom();
+        //}
+    });
+}
+
+function getPiece(x,y) {
+    return $("#x" + x + "y" + y);
+}
+
+
+function validateMove(xy1, xy2) {
+    var x1 = parseInt(xy1[0]);
+    var y1 = parseInt(xy1[1]);
+    var x2 = parseInt(xy2[0]);
+    var y2 = parseInt(xy2[1]);
+
+    var p1 = getPiece(xy1[0], xy1[1]);
+    var p2 = getPiece(xy2[0], xy2[1]);
+
+    var x_dif = Math.abs(x2-x1);
+    var y_dif = Math.abs(y2-y1);
+
+    //Check if destination space is empty
+    if (p2.text()!=0) {
+        return;
+    }
+
+    //Check if move is diagonal
+    if (x_dif!=y_dif) {
+        return false;
+    }
+    //Check if move is not jump
+    if (x_dif==1) {
+        return true;
+    }
+    //Check if move distance is OK
+    if (x_dif>2) {
+        return false;
+    }
+    //Check if jump
+    if (x_dif==2) {
+        var x0 = (x1+x2)/2;
+        var y0 = (y1+y2)/2;
+        var mid = parseInt(getPiece(x0,y0).text());
+        if (mid==player || mid==0) {
+            return false;
+        }
+        else {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Move a piece visually in the board UI
+function movePiece(xy1, xy2) {
+    var from_piece = getPiece(xy1[0], xy1[1]);
+    var to_piece = getPiece(xy2[0], xy2[1]);
+    // var to_piece = $("#x" + xy2[0] + "y" + xy2[1]);
+
+    from_piece.removeClass("piece-selected");
+
+    var p_img = from_piece.css("background-image");
+    from_piece.css("background-image", "");
+    to_piece.css("background-image", p_img);
+}
+
+function submitMove() {
+    $("#submit-btn").click(function() {
+        if (from_pos.length==2 && to_pos.length==2) {
+            //submit move to server
+            // $.post("/checkers/move/" + gameId, JSON.stringify({from: from_pos, to: to_pos}), gameLoop, "json");
+            $.ajax({
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                url: "/checkers/move/" + gameId,
+                data: JSON.stringify({from: from_pos, to: to_pos}),
+                success: gameLoop,
+                dataType: "json"
+            });
+            from_pos = [];
+            to_pos = [];
+            updateFromBox();
+            updateToBox();
+        }
+        
+    });
+}
+
+function resetMove() {
+    $("#reset-btn").click(function() {
+        if (to_pos.length==2) {
+            movePiece(to_pos, from_pos);
+        }
+        else if (from_pos.length==2) {
+            var from_piece = getPiece(from_pos[0], from_pos[1]);
+            from_piece.removeClass("piece-selected");
+        }
+        else {
+            return;
+        }
+        from_pos = [];
+        to_pos = [];
+        updateFromBox();
+        updateToBox();
+
+    });
+}
+
+function setRefreshRate() {
+    $("#refresh-btn").click(function() {
+        var input = $("#refreshratebox").val();
+
+        if (input=="") {//Blank input
+            return;
+        }
+        //Parse to integer
+        input = parseInt(input);
+
+        if (isNaN(input)) { //Input is not a number
+            alert("Enter a number fool");
+            return;
+        }
+        if (input<0) {
+            alert("Negative number lol");
+            return;
+        }
+        if (input==0) {
+            alert("Are you forfeiting?");
+            return;
+        }
+        if (input>300) {
+            alert("Are you even playing");
+            return;
+        }
+        input = input*1000;
+        if (input==refreshRate) { //Input is same
+            return;
+        }
+        refreshRate = input;
+
+
+
+    });
+}
+
+function gameOver() {
+    //game over
+    alert("Game over");
+}
+
+function updateFromBox() {
+    if (from_pos.length==2) {
+        $("#movefrombox").val(from_pos[0] + ", " + from_pos[1]);
+    }
+    else {
+        $("#movefrombox").val("");
+    }
+}
+
+function updateToBox() {
+    if (to_pos.length==2) {
+        $("#movetobox").val(to_pos[0] + ", " + to_pos[1]);
+    }
+    else {
+        $("#movetobox").val("");
+    }
+}
+
+</script>
+
+</body>
+</html>

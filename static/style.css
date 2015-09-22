@@ -1,0 +1,33 @@
+/* 
+    css resets by me
+*/
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+html, body, div, span, img {
+    margin: 0;
+    padding: 0;
+}
+
+ul {
+    margin-bottom: 0;
+}
+/*
+    end css resets
+*/
+
+
+form, input {
+    display: inline;
+}
+
+body {
+    padding: 2em 4em;
+    font-family: 'Arial', sans-serif;
+    font-size: 1.2em;
+    color: #4f4f63;
+}
+
