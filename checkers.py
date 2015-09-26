@@ -33,12 +33,20 @@ PARSE_HEADER = {'X-Parse-Application-Id': PARSE_APP_ID,
                 }
 
 
+# Load List of Existing Games
+def load_all():
+    url = PARSE_URL + '?keys=name,objectId,createdAt,updatedAt,currentPlayer&order=-updatedAt'
+    response = requests.get(url=url, headers=PARSE_HEADER)
+    games = response.json()['results']
+    return games
+
+
 # Create New Game
 # Store Data on Parse Servers
-def new_game():
+def new_game(gamename, password):
     pieces = generate_board()
     first_player = random_player()
-    payload = {'piecesArray': pieces, 'currentPlayer': first_player, 'lastMove': None, 'mustJump': False, 'mustJumpFrom': None}
+    payload = {'name': gamename, 'pWord': password, 'piecesArray': pieces, 'currentPlayer': first_player, 'lastMove': None, 'mustJump': False, 'mustJumpFrom': None}
     response = requests.post(url=PARSE_URL, json=payload, headers=PARSE_HEADER)
     return response.json()['objectId']
 
@@ -86,6 +94,38 @@ def remove_piece(game_state, pos_xy):
         pieces[y][x] = None
 
 
+# Check for promotion
+def can_promote(game_state, pos_xy):
+    pieces = game_state['piecesArray']
+
+    x = pos_xy[0]
+    y = pos_xy[1]
+
+    p = pieces[y][x]
+    # Sanity check
+    if p is None:
+        pass
+    else:
+        if p['rank'] == PAWN_RANK:
+            if (p['owner'] == PLAYER_ONE and y==7) or (p['owner'] == PLAYER_TWO and y==0):
+                game_state['piecesArray'][y][x]['rank'] = KING_RANK
+
+
+# Promote a piece to King
+def promote_piece(game_state, pos_xy):
+    pieces = game_state['piecesArray']
+
+    x = pos_xy[0]
+    y = pos_xy[1]
+
+    p = pieces[y][x]
+    # Sanity check
+    if p is None:
+        pass
+    else:
+        game_state['piecesArray'][y][x]['rank'] = KING_RANK
+
+
 # Move Piece In Place - Assumes Move is Valid
 def move_piece(game_state, move_set):
     pieces = game_state['piecesArray']
@@ -115,6 +155,24 @@ def change_turns(game_state):
     else:
         pass # Error
     game_state['currentPlayer'] = player
+
+
+# Game Over Check
+def is_game_over(game_state):
+    pieces = game_state['piecesArray']
+    p1_count, p2_count = 0, 0
+
+    for rows in pieces:
+        for p in rows:
+            if p is not None:
+                if p['owner']==PLAYER_ONE:
+                    p1_count += 1
+                elif p['owner']==PLAYER_TWO:
+                    p2_count += 1
+
+    if p1_count==0 or p2_count==0:
+        # Game over. Set current player to 0 to let front end know
+        game_state['currentPlayer'] = 0
 
 
 # Pick Who Gets First Move
@@ -261,10 +319,15 @@ def valid_move(game_state, move_set):
             # raise ValueError("Jumping over nothing")
             return False
 
-    # TO-DO: 5. and 6.
     if must_jump(pieces, player) and abs(y2-y1) == 1:
         # raise ValueError("Move is not a jump - jump is available therefore required")
         return False
+
+    mjf = game_state['mustJumpFrom']
+    if mjf is not None:
+        if mjf[0] != x1 or mjf[1] != y1:
+            # Not jumping from must jump (in a double jump)
+            return False
 
     # No problems found, proceed with move
     return True
@@ -317,6 +380,9 @@ def perform_turn(g_id, input_move):
         move_piece(g_state, input_move)
         move_from = input_move['from']
         move_to = input_move['to']
+        if can_promote(g_state, move_to):
+            promote_piece(g_state, move_to)
+        # Jump Logic
         if is_jump(move_from, move_to):
             dead_piece = get_mid(move_from, move_to)
             remove_piece(g_state, dead_piece)
@@ -333,6 +399,8 @@ def perform_turn(g_id, input_move):
             must_jump_from = move_to
         g_state['mustJump'] = must_jump_bool
         g_state['mustJumpFrom'] = must_jump_from
+
+        is_game_over(g_state)
         update_game(g_id, g_state)
         return g_state
     else:  # Move Invalid

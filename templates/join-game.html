@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Joining Private Game</title>
+    <style>
+        body {
+            background: lightyellow;
+            color: dimgray;
+        }
+    </style>
+</head>
+<body>
+
+You are trying to join as Player {{player}}
+<form action="/checkers/load-game/{{gameid}}?player={{player}}" method="POST">
+    Enter the password:
+    <input type="password" name="pwrd"/>
+    <input type="submit" value="Join">
+</form>
+
+</body>
+</html>

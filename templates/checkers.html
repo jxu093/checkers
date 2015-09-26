@@ -5,8 +5,110 @@
     <title>Checkers</title>
 </head>
 <body>
-    <form action="/checkers/new-game" method="POST"><input type="submit" value="New Game"></form>
+<div id="body">
+    <div id="header">
+        Online Checkers Game by Jerry Xu 2015
+    </div>
     <br>
-    To invite a second player, just copy the URL on the next page to someone else with the player value at the end of the URL changed from '1' to '2'
+    <div class="spacer"></div>
+    <div id="new-game-form" class="panel">
+    Start New Game:
+        <form action="/checkers/new-game" method="POST">
+        Enter a name for this game <br><input type="text" name="gamename" value=""><br>
+        Enter a password (Or leave blank) <br><input type="password" name="pwrd" value="">
+        <input type="submit" value="New Game"></form>
+    </div>
+    <div class="spacer"></div>
+    <div class="spacer"></div>
+    <div class="spacer"></div>
+    <div class="spacer"></div>
+    <div id="existing-games" class="panel">
+        Existing Games:
+        <table>
+            <tr>
+                <th>Game Name</th> <th>Current Player</th> <th>Time Created</th> <th>Last Active</th> <th>Game Link</th>
+            </tr>
+
+        {% for game in games %}
+        <tr>
+            <td>{{game['name']}}</td>
+            <td>{{game['currentPlayer']}}</td>
+            <td>{{game['createdAt'].split('T')[0]}}</td>
+            <td>{{game['updatedAt'].split('T')[0]}}</td>
+            <td><a href="/checkers/load-game/{{game['objectId']}}?player=1">Player 1</a> <a href="/checkers/load-game/{{game['objectId']}}?player=2">Player 2</a></td>
+        </tr>
+        {% endfor %}
+
+        </table>
+    </div>
+    <div id="footer">
+        To invite a second player, just copy the URL on the next page to someone else with the player value at the end of the URL changed from '1' to '2'
+    </div>
+
+</div>
+    
+
+<style>
+    html, body {
+        height: 100%;
+    }
+    body {
+        margin: 0;
+        padding: 0;
+
+        background: lightslategray;
+        color: white;
+
+        font-family: 'Arial';
+    }
+    #body {
+        height: 90%;
+        padding: 2em;
+        
+    }
+    #header {
+        margin: 2em;
+        text-align: center;
+
+        font-size: 2em;
+    }
+    .panel {
+        display: inline-block;
+        vertical-align: top;
+
+        color: white;
+    }
+    .panel a {
+        color: white;
+    }
+    .spacer {
+        display: inline-block;
+        width: 5%;
+    }
+    #new-game-form {
+        width: 20%;
+        height: 70%;
+    }
+
+    #existing-games {
+        width: 40%;
+        height: 70%;
+        
+    }
+    #existing-games table {
+        text-align: center;
+
+        background: lightgray;
+        color: dimgray;
+    }
+    #existing-games table th {
+        padding: 0 1em;
+    }
+
+    #footer {
+        position: absolute;
+        bottom: 3em;
+    }
+</style>
 </body>
 </html>

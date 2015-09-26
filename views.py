@@ -1,5 +1,7 @@
 from flask import Flask, request, redirect, url_for, render_template, jsonify
 
+import hashlib
+
 import checkers
 
 app = Flask(__name__)
@@ -15,34 +17,52 @@ def index():
 # BEGIN CHECKERS STUFF
 @app.route('/checkers', methods=['GET', 'POST'])
 def checkers_home():
-    return render_template('checkers.html')
+    games = checkers.load_all()
+    return render_template('checkers.html', games=games)
 
 
 # Create new game, display board and game ID to host
 @app.route('/checkers/new-game', methods=['GET', 'POST'])
 def checkers_new_game():
     if request.method == 'POST':
-        g_id = checkers.new_game()
+        gamename = request.form.get('gamename')
+        password = request.form.get('pwrd')
+        if gamename == '' or gamename.isspace():
+            return redirect('/checkers')
+        if password == '' or gamename.isspace():
+            password = None
+        else:
+            password = hashlib.sha1(password.encode()).hexdigest()
+        g_id = checkers.new_game(gamename, password)
         # Load game board display with g_id parameter, player=player1
         return redirect('/checkers/load-game/'+g_id+'?player=1')
 
 
 # Load game, display board and game ID to guest player
-@app.route('/checkers/load-game/<gameid>', methods=['GET'])
+@app.route('/checkers/load-game/<gameid>', methods=['GET', 'POST'])
 def checkers_load(gameid):
     g_state = checkers.load_game(gameid)
     if 'error' in g_state:
-        flash('The game id is invalid')
         return redirect('/checkers')
-    else:
-        player = checkers.PLAYER_TWO
-        # Allows player to regain access as player ONE if page was lost
-        if 'player' in request.args:
-            player = int(request.args.get('player'))
-            if player!=1 and player!=2:
-                player=2
-        # Load game board display with g_id as parameter, player=player2
-        return render_template('checkers-board.html', gameid=gameid, player=player)
+    if 'player' not in request.args:
+        return redirect('/checkers')
+
+    # Get player to join as
+    player = int(request.args.get('player'))
+
+    if request.method == 'GET':
+        if g_state['pWord'] is not None:
+            return render_template('join-game.html', gameid=gameid, player=player)
+
+    if request.method == 'POST':
+        password = request.form.get('pwrd')
+        if hashlib.sha1(password.encode()).hexdigest() != g_state['pWord']:
+            return render_template('join-game.html', gameid=gameid, player=player)
+
+    if player!=1 and player!=2:
+        player=2
+    # Load game board display with g_id as parameter, chosen player or player 2 default
+    return render_template('checkers-board.html', gameid=gameid, player=player)
 
 
 # Polling API Endpoint

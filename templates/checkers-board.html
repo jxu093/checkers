@@ -5,6 +5,10 @@
     <title>Checkers</title>
     <link rel=stylesheet type=text/css href="/static/style.css">
     <style>
+        body {
+            background: lightyellow;
+            color: dimgray;
+        }
         .piece-block {
             display: inline-block;
             height: 60px;
@@ -12,9 +16,21 @@
             border: 1px solid gray;
             color: rgba(0,0,0,0);
             background-size: contain;
+
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* Internet Explorer */
+            -khtml-user-select: none; /* KHTML browsers (e.g. Konqueror) */
+            -webkit-user-select: none; /* Chrome, Safari, and Opera */
+            -webkit-touch-callout: none; /* Disable Android and iOS callouts*/
         }
         .piece-selected {
             background-color: yellow !important;
+        }
+        .small-text {
+            font-size: 85%;
+        }
+        .smaller-text {
+            font-size: 55%;
         }
     </style>
     <script src="/static/scripts/jquery-1.11.3.min.js"></script>
@@ -25,17 +41,19 @@ You are Player {{ player }} <img src="/static/img/button-{{player}}.png" style="
 <br><br>
 It is Player <span id="current-player"></span> <img id="current-player-img" style="width:20px;">'s turn
 <br><br>
-
+<i class="small-text">Reminder: You must make a jump when it is available!</i>
+<br><br>
 <div id="board"></div>
 
 <br>
 From: <input type="text" name="movefrombox" id="movefrombox" size="5"/> To: <input type="text" name="movetobox" id="movetobox" size="5"/>
 <button id="submit-btn">Submit Move</button><button id="reset-btn">Reset Move</button>
-<br>
-Reload every <input type="text" id="refreshratebox" size="1" maxlength="3" value="30"/> Seconds <button id="refresh-btn">Set</button>
+<br><br>
+<span class="smaller-text">Reload every <input type="text" id="refreshratebox" size="1" maxlength="3" value="10"/> Seconds <button id="refresh-btn">Set</button></span>
 
 
 <script>
+var gameStateObj = null;
 var gameId = "{{gameid}}";
 var player = {{player}};
 var current_player;
@@ -43,7 +61,7 @@ var updatedAt = "";
 var from_pos = [];
 var to_pos = [];
 
-var refreshRate = 30000;
+var refreshRate = 10000;
 
 $(document).ready(function(){
     //Draw the board
@@ -79,7 +97,6 @@ $(document).ready(function(){
 
 
 //Draw the game pieces
-//var gameData = {"createdAt":"2015-09-09T23:54:24.415Z","currentPlayer":1,"lastMove":null,"mustJump":false,"mustJumpFrom":null,"objectId":"M5T6ygN6ih","piecesArray":[[{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null],[null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1}],[{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null,{"owner":1,"rank":1},null],[null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null],[null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1}],[{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null],[null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1},null,{"owner":2,"rank":1}]],"updatedAt":"2015-09-09T23:54:24.415Z"};
 function drawPieces(gameData) {
     var pieces = gameData['piecesArray'];
     for (var y=0; y<8; y++) {
@@ -89,9 +106,12 @@ function drawPieces(gameData) {
                 var pieceimage = "";
                 var pieceText = "0";
 
-                pieceimage = "button-"+p['owner']+".png";
+                pieceimage = "url('/static/img/button-"+p['owner']+".png')";
+                if (p['rank']==2) {
+                    pieceimage = "url('/static/img/crown.png')," + pieceimage;
+                }
                 pieceText = p['owner'].toString();
-                $("#x"+x+"y"+y).css("background-image", "url('/static/img/"+pieceimage+"')");
+                $("#x"+x+"y"+y).css("background-image", pieceimage);
                 $("#x"+x+"y"+y).text(pieceText);
             }
             else {
@@ -108,7 +128,7 @@ function drawPieces(gameData) {
 
 
 function gameLoop() {
-    $.ajax("/checkers/poll/" + gameId).done(function(data) {
+    $.ajax("/checkers/poll/" + gameId, {dataType: "json", cache: false}).done(function(data) {
         // if (updatedAt==data['updatedAt']) {
 
         // }
@@ -120,6 +140,7 @@ function gameLoop() {
         if (player==data['currentPlayer']) { //Client player's turn
             //wait for input
             // getMove();
+            gameStateObj = data;
         }
         else if (0==data['currentPlayer']) { //Game over
             gameOver();
@@ -193,6 +214,15 @@ function setClickBindings() {
 
             // 2.
             var tempXY = [x_pos, y_pos];
+
+            //Check if clicking first piece to cancel move
+            if (tempXY[0]==from_pos[0] && tempXY[1]==from_pos[1]) {
+                $(this).removeClass("piece-selected");
+                from_pos = [];
+                updateFromBox();
+                return;
+            }
+
             var isValid = validateMove(from_pos, tempXY);
 
             if (!isValid) {
@@ -208,35 +238,7 @@ function setClickBindings() {
 
             // 5. and 6.
             movePiece(from_pos, to_pos);
-
-            // // 5.
-            // var from_piece = $("#x" + from_pos[0] + "y" + from_pos[1]);
-            // from_piece.toggleClass("piece-selected");
-
-            // // 6.
-            // var p_img = from_piece.css("background-image");
-            // from_piece.css("background-image", "");
-            // $(this).css("background-image", p_img);
-
         }
-        // var pid = $(this).attr("id");
-        // var owner = parseInt($(this).text());
-        // if (owner==player) {
-        //     //Proceed
-        //     var x_pos = pid.charAt(1);
-        //     var y_pos = pid.charAt(3);
-        //     $(this).toggleClass("piece-selected");
-        //     //Display in input box
-        //     // $("#movefrombox").val(x_pos + ", " + y_pos);
-        //     from_pos[0] = x_pos;
-        //     from_pos[1] = y_pos;
-        //     updateFromBox();
-        //     return [x_pos, y_pos];
-        // }
-        // else {
-        //     //Wrong piece clicked, get input again
-        //     return getFrom();
-        //}
     });
 }
 
@@ -268,12 +270,21 @@ function validateMove(xy1, xy2) {
     }
     //Check if move is not jump
     if (x_dif==1) {
+        // if (gameStateObj['mustJump']==true) {
+        //     return false;
+        // }
         return true;
     }
     //Check if move distance is OK
     if (x_dif>2) {
         return false;
     }
+    // //Check if complies with mustJump and mustJumpFrom
+    // if (gameStateObj['mustJump']==true && gameStateObj['mustJumpFrom']!=null) {
+    //     if (gameStateObj['mustJumpFrom']!=xy1) {
+    //         return false;
+    //     }
+    // }
     //Check if jump
     if (x_dif==2) {
         var x0 = (x1+x2)/2;
@@ -313,7 +324,8 @@ function submitMove() {
                 url: "/checkers/move/" + gameId,
                 data: JSON.stringify({from: from_pos, to: to_pos}),
                 success: gameLoop,
-                dataType: "json"
+                dataType: "json",
+                cache: false
             });
             from_pos = [];
             to_pos = [];
