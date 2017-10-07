@@ -1,3 +1,5 @@
 vir
 *.pyc
 .idea
+.DS_Store
+vir_osx
