@@ -1,5 +1,5 @@
-import requests
-import os
+
+from datetime import datetime
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 
@@ -23,19 +23,8 @@ KING_RANK = 2
 PLAYER_ONE = 1
 PLAYER_TWO = 2
 
-
-# Parse Parameters
-# PARSE_APP_ID = os.environ['PARSE_APP_ID']
-# PARSE_API_KEY = os.environ['PARSE_API_KEY']
-#
-# PARSE_URL = 'https://api.parse.com/1/classes/GameState'
-# PARSE_HEADER = {'X-Parse-Application-Id': PARSE_APP_ID,
-#                 'X-Parse-REST-API-Key': PARSE_API_KEY,
-#                 'Content-Type': 'application/json'
-#                 }
-
 # MongoDB Parameters
-#MONGODB_URI = os.environ['MONGODB_URI']
+# MONGODB_URI = os.environ['MONGODB_URI']
 MONGODB_URI = 'mongodb://heroku_l448tgw0:67cv5e94sa99uimc8qincrbb2h@ds161497.mlab.com:61497/heroku_l448tgw0'
 MONGODB_DBNAME = 'heroku_l448tgw0'
 
@@ -58,7 +47,8 @@ def load_all():
 def new_game(gamename, password):
     pieces = generate_board()
     first_player = random_player()
-    payload = {'name': gamename, 'pWord': password, 'piecesArray': pieces, 'currentPlayer': first_player, 'lastMove': None, 'mustJump': False, 'mustJumpFrom': None}
+    payload = {'name': gamename, 'pWord': password, 'piecesArray': pieces, 'currentPlayer': first_player,
+               'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M'), 'lastMove': None, 'mustJump': False, 'mustJumpFrom': None}
     return GAMES.insert_one(payload).inserted_id
 
 
@@ -87,6 +77,7 @@ def load_game(game_id):
 # Update Game State On Parse
 def update_game(game_id, payload):
     payload['_id'] = ObjectId(game_id)
+    payload['updatedAt'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     GAMES.save(payload)
 
 
