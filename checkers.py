@@ -1,5 +1,7 @@
 import requests
 import os
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 
 # Function to Print Checker Board in Console
@@ -23,21 +25,31 @@ PLAYER_TWO = 2
 
 
 # Parse Parameters
-PARSE_APP_ID = os.environ['PARSE_APP_ID']
-PARSE_API_KEY = os.environ['PARSE_API_KEY']
+# PARSE_APP_ID = os.environ['PARSE_APP_ID']
+# PARSE_API_KEY = os.environ['PARSE_API_KEY']
+#
+# PARSE_URL = 'https://api.parse.com/1/classes/GameState'
+# PARSE_HEADER = {'X-Parse-Application-Id': PARSE_APP_ID,
+#                 'X-Parse-REST-API-Key': PARSE_API_KEY,
+#                 'Content-Type': 'application/json'
+#                 }
 
-PARSE_URL = 'https://api.parse.com/1/classes/GameState'
-PARSE_HEADER = {'X-Parse-Application-Id': PARSE_APP_ID,
-                'X-Parse-REST-API-Key': PARSE_API_KEY,
-                'Content-Type': 'application/json'
-                }
+# MongoDB Parameters
+#MONGODB_URI = os.environ['MONGODB_URI']
+MONGODB_URI = 'mongodb://heroku_l448tgw0:67cv5e94sa99uimc8qincrbb2h@ds161497.mlab.com:61497/heroku_l448tgw0'
+MONGODB_DBNAME = 'heroku_l448tgw0'
+
+# Set Up MongoDB Connection
+CLIENT = MongoClient(MONGODB_URI)
+DB = CLIENT[MONGODB_DBNAME]
+GAMES = DB['GameState']
 
 
 # Load List of Existing Games
 def load_all():
-    url = PARSE_URL + '?keys=name,objectId,createdAt,updatedAt,currentPlayer&order=-updatedAt'
-    response = requests.get(url=url, headers=PARSE_HEADER)
-    games = response.json()['results']
+    games = []
+    for game in GAMES.find().sort('_updated_at'):
+        games.append(game)
     return games
 
 
@@ -47,8 +59,7 @@ def new_game(gamename, password):
     pieces = generate_board()
     first_player = random_player()
     payload = {'name': gamename, 'pWord': password, 'piecesArray': pieces, 'currentPlayer': first_player, 'lastMove': None, 'mustJump': False, 'mustJumpFrom': None}
-    response = requests.post(url=PARSE_URL, json=payload, headers=PARSE_HEADER)
-    return response.json()['objectId']
+    return GAMES.insert_one(payload).inserted_id
 
 
 # Fill New 8x8 Board With Pieces
@@ -70,14 +81,13 @@ def generate_board():
 
 # Load Game State From Parse
 def load_game(game_id):
-    response = requests.get(url=PARSE_URL + '/' + game_id, headers=PARSE_HEADER)
-    game_state = response.json()
-    return game_state
+    return GAMES.find_one({'_id': ObjectId(game_id)})
 
 
 # Update Game State On Parse
 def update_game(game_id, payload):
-    response = requests.put(url=PARSE_URL + '/' + game_id, json=payload, headers=PARSE_HEADER)
+    payload['_id'] = ObjectId(game_id)
+    GAMES.save(payload)
 
 
 # Delete a piece from game

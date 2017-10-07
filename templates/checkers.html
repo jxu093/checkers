@@ -33,8 +33,8 @@
         <tr>
             <td>{{game['name']}}</td>
             <td>{{game['currentPlayer']}}</td>
-            <td>{{game['createdAt'].split('T')[0]}}</td>
-            <td>{{game['updatedAt'].split('T')[0]}}</td>
+            <td>{{game['_created_at']}}</td>
+            <td></td>
             <td><a href="/checkers/load-game/{{game['objectId']}}?player=1">Player 1</a> <a href="/checkers/load-game/{{game['objectId']}}?player=2">Player 2</a></td>
         </tr>
         {% endfor %}
