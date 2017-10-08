@@ -1,17 +1,41 @@
 from flask import Flask, request, redirect, url_for, render_template, jsonify
-
+from flask_socketio import SocketIO, join_room, leave_room, send
 import hashlib
 
 import checkers
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 
 
 # Main Pages
-
 @app.route('/')
 def index():
     return redirect('/checkers')
+
+
+# Chat
+@socketio.on('join')
+def on_join(data):
+    username = data['player']
+    room = data['room']
+    join_room(room)
+    send(username + ' has entered the room.', room=room)
+    print username + " has entered room " + room
+
+
+@socketio.on('leave')
+def on_leave(data):
+    username = data['player']
+    room = data['room']
+    leave_room(room)
+    send(username + ' has left the room.', room=room)
+    print username + " has left room " + room
+
+
+@socketio.on('message')
+def on_message(msg, player, room):
+    send({"msg": msg, "player": player}, room=room)
 
 
 # BEGIN CHECKERS STUFF
@@ -95,4 +119,4 @@ def checkers_move(gameid):
 
 if __name__ == '__main__':
     app.debug = True
-    app.run()
+    socketio.run(app)

@@ -9,6 +9,9 @@
             background: lightyellow;
             color: dimgray;
         }
+        #board {
+            display: inline-block;
+        }
         .piece-block {
             display: inline-block;
             height: 60px;
@@ -32,6 +35,36 @@
         .smaller-text {
             font-size: 55%;
         }
+
+        /*
+            chatroom
+        */
+
+        #chat {
+            float: right;
+            height: 380px;
+            width: 40%;
+        }
+
+        #messages {
+            height: 85%;
+            overflow-y: scroll;
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .message {
+            font-size: 80%;
+        }
+
+        .message .player-1 {
+            color: red;
+        }
+
+        .messsage .player-2 {
+            color: black;
+        }
     </style>
     <script src="/static/scripts/jquery-1.11.3.min.js"></script>
 </head>
@@ -45,13 +78,34 @@ It is Player <span id="current-player"></span> <img id="current-player-img" styl
 <br><br>
 <div id="board"></div>
 
+<div id="chat">
+    <h3>Chat</h3>
+    <ul id="messages"></ul>
+    <br>
+    <form name="entermsg" id="entermsg"><input type="text" name="inputmsg" id="inputmsg"/><button>Submit</button></form>
+</div>
+
 <br>
 From: <input type="text" name="movefrombox" id="movefrombox" size="5"/> To: <input type="text" name="movetobox" id="movetobox" size="5"/>
 <button id="submit-btn">Submit Move</button><button id="reset-btn">Reset Move</button>
 <br><br>
 <span class="smaller-text">Reload every <input type="text" id="refreshratebox" size="1" maxlength="3" value="10"/> Seconds <button id="refresh-btn">Set</button></span>
 
-
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+<script type="text/javascript" charset="utf-8">
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+    socket.on('connect', function() {
+        socket.emit('join', {room: "{{gameid}}", player: "{{player}}"});
+    });
+    socket.on('disconnect', function() {
+        socket.emit('leave', {room: "{{gameid}}", player: "{{player}}"});
+    });
+    socket.on('message', function(data) {
+        if (data['msg']) {
+            showMessage(data['msg'], data['player']);
+        }
+    });
+</script>
 <script>
 var gameStateObj = null;
 var gameId = "{{gameid}}";
@@ -64,6 +118,24 @@ var to_pos = [];
 var refreshRate = 10000;
 
 $(document).ready(function(){
+
+    drawBoard();
+    setChatHandler();
+
+    //Bind move control buttons
+    setSubmitMoveHandler();
+    setResetMoveHandler();
+    setRefreshRate();
+
+    //Bind div piece clicks
+    setClickBindings();
+
+    //Start game
+    gameLoop();
+
+});
+
+function drawBoard() {
     //Draw the board
     for (var y=0; y<8; y++) {
         for (var x=0; x<8; x++) {
@@ -81,20 +153,7 @@ $(document).ready(function(){
             $("#x"+x+"y"+y).css("background-color", bgcss);
         }
     }
-
-    //Bind move control buttons
-    submitMove();
-    resetMove();
-    setRefreshRate();
-
-    //Bind div piece clicks
-    setClickBindings();
-
-    //Start game
-    gameLoop();
-
-});
-
+}
 
 //Draw the game pieces
 function drawPieces(gameData) {
@@ -122,11 +181,41 @@ function drawPieces(gameData) {
     }
 }
 
+function setChatHandler() {
+    //do this shit chat
+    $('form#entermsg').submit(function(event) {
+        var msg = $("#inputmsg").val();
+        if (msg) {
+            sendMessage(msg);
+        }
+        return false;
+    });
+}
+
+function sendMessage(message) {
+    socket.emit("message", message, player={{player}}, room="{{gameid}}");
+}
+
+function showMessage(message, player) {
+    var msg = "<li class='message'>" +
+    "<span class='player-" + player + "'>" +
+    "Player " + player + "</span>: " +
+    message +
+    "</li>";
+    $("#messages").append(msg);
+
+    // $("#messages").append("<li class='message'>");
+    // $("#messages").append("<span class='player-" + player + "'>");
+    // $("#messages").append("Player " + player + "</span>: ");
+    // $("#messages").append(message);
+    // $("#messages").append("</li>");
+
+    $("#inputmsg").val('');
+    $("#messages")[0].scrollTop = $("#messages")[0].scrollHeight;
+}
 
 
 //Game Logic
-
-
 function gameLoop() {
     $.ajax("/checkers/poll/" + gameId, {dataType: "json", cache: false}).done(function(data) {
         // if (updatedAt==data['updatedAt']) {
@@ -313,7 +402,7 @@ function movePiece(xy1, xy2) {
     to_piece.css("background-image", p_img);
 }
 
-function submitMove() {
+function setSubmitMoveHandler() {
     $("#submit-btn").click(function() {
         if (from_pos.length==2 && to_pos.length==2) {
             //submit move to server
@@ -336,7 +425,7 @@ function submitMove() {
     });
 }
 
-function resetMove() {
+function setResetMoveHandler() {
     $("#reset-btn").click(function() {
         if (to_pos.length==2) {
             movePiece(to_pos, from_pos);
