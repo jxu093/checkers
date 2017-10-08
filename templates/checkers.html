@@ -33,9 +33,9 @@
         <tr>
             <td>{{game['name']}}</td>
             <td>{{game['currentPlayer']}}</td>
-            <td>{{game['createdAt'].split('T')[0]}}</td>
-            <td>{{game['updatedAt'].split('T')[0]}}</td>
-            <td><a href="/checkers/load-game/{{game['objectId']}}?player=1">Player 1</a> <a href="/checkers/load-game/{{game['objectId']}}?player=2">Player 2</a></td>
+            <td>{{game['createdAt']}}</td>
+            <td>{{game['updatedAt']}}</td>
+            <td><a href="/checkers/load-game/{{game['_id']}}?player=1">Player 1</a> <a href="/checkers/load-game/{{game['_id']}}?player=2">Player 2</a></td>
         </tr>
         {% endfor %}
 
@@ -56,7 +56,9 @@
         margin: 0;
         padding: 0;
 
-        background: lightslategray;
+        background-color: lightslategray;
+        background-image: url('static/img/competition.jpg');
+        background-size: cover;
         color: white;
 
         font-family: 'Arial';
@@ -64,6 +66,7 @@
     #body {
         height: 90%;
         padding: 2em;
+        background-color: rgba(0, 0, 0, 0.7);
         
     }
     #header {

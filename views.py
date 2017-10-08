@@ -33,7 +33,7 @@ def checkers_new_game():
             password = None
         else:
             password = hashlib.sha1(password.encode()).hexdigest()
-        g_id = checkers.new_game(gamename, password)
+        g_id = str(checkers.new_game(gamename, password))
         # Load game board display with g_id parameter, player=player1
         return redirect('/checkers/load-game/'+g_id+'?player=1')
 
@@ -74,6 +74,7 @@ def checkers_poll(gameid):
             # Error
             return "Error"
         else:
+            g_state['_id'] = str(g_state['_id'])
             return jsonify(g_state)
 
 
@@ -83,7 +84,9 @@ def checkers_move(gameid):
     if request.method == 'POST':
         move = request.get_json()
         if 'from' in move and 'to' in move:
-            return jsonify(checkers.perform_turn(gameid, move))
+            g_state = checkers.perform_turn(gameid, move)
+            g_state['_id'] = str(g_state['_id'])
+            return jsonify(g_state)
         else: # Error
             pass
 
