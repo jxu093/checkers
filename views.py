@@ -1,5 +1,5 @@
 from flask import Flask, request, redirect, url_for, render_template, jsonify
-from flask_socketio import SocketIO, join_room, leave_room, send
+from flask_socketio import SocketIO, join_room, leave_room, emit
 import hashlib
 
 import checkers
@@ -20,7 +20,7 @@ def on_join(data):
     username = data['player']
     room = data['room']
     join_room(room)
-    send(username + ' has entered the room.', room=room)
+    emit('system-message', username + ' has entered the room.', room=room)
     print username + " has entered room " + room
 
 
@@ -29,13 +29,13 @@ def on_leave(data):
     username = data['player']
     room = data['room']
     leave_room(room)
-    send(username + ' has left the room.', room=room)
+    emit('system-message', username + ' has left the room.', room=room)
     print username + " has left room " + room
 
 
 @socketio.on('message')
 def on_message(msg, player, room):
-    send({"msg": msg, "player": player}, room=room)
+    emit('message', {"msg": msg, "player": player}, room=room)
 
 
 # BEGIN CHECKERS STUFF

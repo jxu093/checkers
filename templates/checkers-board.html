@@ -105,6 +105,11 @@ From: <input type="text" name="movefrombox" id="movefrombox" size="5"/> To: <inp
             showMessage(data['msg'], data['player']);
         }
     });
+    socket.on('system-message', function(msg) {
+        if (msg) {
+            showMessage(msg);
+        }
+    });
 </script>
 <script>
 var gameStateObj = null;
@@ -197,18 +202,13 @@ function sendMessage(message) {
 }
 
 function showMessage(message, player) {
-    var msg = "<li class='message'>" +
-    "<span class='player-" + player + "'>" +
-    "Player " + player + "</span>: " +
-    message +
-    "</li>";
-    $("#messages").append(msg);
+    var msg = "<li class='message'>";
+    if (player) {
+        msg += "<span class='player-" + player + "'>" + "Player " + player + "</span>: ";
+    }
+    msg += message + "</li>";
 
-    // $("#messages").append("<li class='message'>");
-    // $("#messages").append("<span class='player-" + player + "'>");
-    // $("#messages").append("Player " + player + "</span>: ");
-    // $("#messages").append(message);
-    // $("#messages").append("</li>");
+    $("#messages").append(msg);
 
     $("#inputmsg").val('');
     $("#messages")[0].scrollTop = $("#messages")[0].scrollHeight;
